@@ -1,10 +1,10 @@
-package problems.qbf.solvers;
+package problems.kqbf.solvers;
 
 import java.io.IOException;
 import java.util.ArrayList;
 
 import metaheuristics.grasp.AbstractGRASP;
-import problems.qbf.QBF_Inverse;
+import problems.kqbf.KQBF_Inverse;
 import solutions.Solution;
 
 
@@ -16,7 +16,7 @@ import solutions.Solution;
  * 
  * @author ccavellucci, fusberti
  */
-public class GRASP_QBF extends AbstractGRASP<Integer> {
+public class GRASP_KQBF extends AbstractGRASP<Integer> {
 
 	/**
 	 * Constructor for the GRASP_QBF class. An inverse QBF objective function is
@@ -33,8 +33,8 @@ public class GRASP_QBF extends AbstractGRASP<Integer> {
 	 * @throws IOException
 	 *             necessary for I/O operations.
 	 */
-	public GRASP_QBF(Double alpha, Integer iterations, String filename) throws IOException {
-		super(new QBF_Inverse(filename), alpha, iterations);
+	public GRASP_KQBF(Double alpha, Integer iterations, String filename) throws IOException {
+		super(new KQBF_Inverse(filename), alpha, iterations);
 	}
 
 	/*
@@ -76,9 +76,16 @@ public class GRASP_QBF extends AbstractGRASP<Integer> {
 	 */
 	@Override
 	public void updateCL() {
+		// Remove items that weight over the capacity
 
-		// do nothing since all elements off the solution are viable candidates.
+		ArrayList<Integer> newCL = new ArrayList<Integer>();
 
+		for (Integer cand : CL) {
+			if (ObjFunction.getKnapsackWeightByItem(cand) + ObjFunction.getCurrentKnapsackWeight(sol) <= ObjFunction.getKnapsackCapacity()) {
+				newCL.add(cand);
+			}
+		}
+		CL = newCL;
 	}
 
 	/**
@@ -245,7 +252,7 @@ public class GRASP_QBF extends AbstractGRASP<Integer> {
 	public static void main(String[] args) throws IOException {
 
 		long startTime = System.currentTimeMillis();
-		GRASP_QBF grasp = new GRASP_QBF(0.05, 1000, "instances/qbf/qbf040");
+		GRASP_KQBF grasp = new GRASP_KQBF(0.05, 1000, "instances/kqbf/kqbf040");
 		Solution<Integer> bestSol = grasp.solve();
 		System.out.println("maxVal = " + bestSol);
 		long endTime   = System.currentTimeMillis();

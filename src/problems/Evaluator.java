@@ -75,4 +75,10 @@ public interface Evaluator<E> {
 	 */
 	public abstract Double evaluateExchangeCost(E elemIn, E elemOut, Solution<E> sol);
 
+    public abstract int getCurrentKnapsackWeight(Solution<E> sol);
+	
+	public abstract int getKnapsackWeightByItem(int i);
+
+	public abstract int getKnapsackCapacity();
+
 }
