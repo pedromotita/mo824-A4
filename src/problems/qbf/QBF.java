@@ -372,4 +372,22 @@ public class QBF implements Evaluator<Integer> {
 
 	}
 
+	@Override
+	public int getCurrentKnapsackWeight(Solution<Integer> sol) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public int getKnapsackWeightByItem(int i) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public int getKnapsackCapacity() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
 }

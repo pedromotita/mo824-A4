@@ -81,7 +81,7 @@ public class GRASP_KQBF extends AbstractGRASP<Integer> {
 		ArrayList<Integer> newCL = new ArrayList<Integer>();
 
 		for (Integer cand : CL) {
-			if (ObjFunction.getKnapsackWeightByItem(cand) + ObjFunction.getCurrentKnapsackWeight(sol) <= ObjFunction.getKnapsackCapacity()) {
+			if (ObjFunction.getKnapsackWeightByItem((int)cand) + ObjFunction.getCurrentKnapsackWeight(sol) <= ObjFunction.getKnapsackCapacity()) {
 				newCL.add(cand);
 			}
 		}
@@ -252,7 +252,7 @@ public class GRASP_KQBF extends AbstractGRASP<Integer> {
 	public static void main(String[] args) throws IOException {
 
 		long startTime = System.currentTimeMillis();
-		GRASP_KQBF grasp = new GRASP_KQBF(0.05, 1000, "instances/kqbf/kqbf080");
+		GRASP_KQBF grasp = new GRASP_KQBF(0.0, 1000, "instances/kqbf/kqbf020");
 		Solution<Integer> bestSol = grasp.solve();
 		System.out.println("maxVal = " + bestSol);
 		long endTime   = System.currentTimeMillis();

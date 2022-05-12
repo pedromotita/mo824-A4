@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Collections;
 
 import problems.Evaluator;
@@ -163,37 +164,38 @@ public abstract class AbstractGRASP<E> {
 			cost = ObjFunction.evaluate(sol);
 			updateCL();
 
-			/*
-			 * Explore all candidate elements to enter the solution, saving the
-			 * highest and lowest cost variation achieved by the candidates.
-			 */
-			for (E c : CL) {
-				Double deltaCost = ObjFunction.evaluateInsertionCost(c, sol);
-				if (deltaCost < minCost)
-					minCost = deltaCost;
-				if (deltaCost > maxCost)
-					maxCost = deltaCost;
-			}
-
-			/*
-			 * Among all candidates, insert into the RCL those with the highest
-			 * performance using parameter alpha as threshold.
-			 */
-			for (E c : CL) {
-				Double deltaCost = ObjFunction.evaluateInsertionCost(c, sol);
-				if (deltaCost <= minCost + alpha * (maxCost - minCost)) {
-					RCL.add(c);
+			if (CL.size() > 0) {
+				/*
+				* Explore all candidate elements to enter the solution, saving the
+				* highest and lowest cost variation achieved by the candidates.
+				*/
+				for (E c : CL) {
+					Double deltaCost = ObjFunction.evaluateInsertionCost(c, sol);
+					if (deltaCost < minCost)
+						minCost = deltaCost;
+					if (deltaCost > maxCost)
+						maxCost = deltaCost;
 				}
+
+				/*
+				* Among all candidates, insert into the RCL those with the highest
+				* performance using parameter alpha as threshold.
+				*/
+				for (E c : CL) {
+					Double deltaCost = ObjFunction.evaluateInsertionCost(c, sol);
+					if (deltaCost <= minCost + alpha * (maxCost - minCost)) {
+						RCL.add(c);
+					}
+				}
+
+				/* Choose a candidate randomly from the RCL */
+				int rndIndex = rng.nextInt(RCL.size());
+				E inCand = RCL.get(rndIndex);
+				CL.remove(inCand);
+				sol.add(inCand);
+				ObjFunction.evaluate(sol);
+				RCL.clear();
 			}
-
-			/* Choose a candidate randomly from the RCL */
-			int rndIndex = rng.nextInt(RCL.size());
-			E inCand = RCL.get(rndIndex);
-			CL.remove(inCand);
-			sol.add(inCand);
-			ObjFunction.evaluate(sol);
-			RCL.clear();
-
 		}
 
 		return sol;
@@ -316,52 +318,59 @@ public abstract class AbstractGRASP<E> {
 		return sol;
 	}
 
-	public Solution<E> sampledGreedyConstruction(Double p) {
+	public Solution<E> constructiveSampleGreedyHeuristic(Double p) {
 		CL = makeCL();
 		RCL = makeRCL();
 		sol = createEmptySol();
 		cost = Double.POSITIVE_INFINITY;
-		Int numberOfCandidatesToSelect = Math.min(CL.size(), p);
+		int numberOfCandidatesToSelect = Math.min(CL.size(), p.intValue());
 		
 		while (!constructiveStopCriteria()) {
 
-			double maxCost = Double.NEGATIVE_INFINITY, minCost = Double.POSITIVE_INFINITY;
+			double minCost = Double.POSITIVE_INFINITY;
 			cost = ObjFunction.evaluate(sol);
 			updateCL();
-	
-			/*
-			 * Among all candidates, randomly sample min{p, |C|} elements and insert into the RCL those
-			 * performance using parameter alpha as threshold.
-			 */
-			ArrayList<E> selectedCandidates = ArrayList<>();
-			for (int i = 0; i < numberOfCandidatesToSelect; i++) {
-           		// generating the index using Math.random()
-            	int index = (int)(Math.random() * CL.size());
-            	selectedCandidates.add(CL.get(index));
-        	}
 
-			Map<Double, E> candidatesAndCost = new HashMap<String, String>();
-			for (E c : selectedCandidates) {
-				Double cost = ObjFunction.evaluateInsertionCost(c, sol);
-				candidatesAndCost.put(cost, c);
-			}
+			if (CL.size() > 0) {
+				/*
+				* Among all candidates, randomly sample min{p, |C|} elements and insert into the RCL those
+				* performance using parameter alpha as threshold.
+				*/
+				ArrayList<E> selectedCandidates = new ArrayList<E>();
+				for (int i = 0; i < numberOfCandidatesToSelect; i++) {
+					// generating the index using Math.random()
+					Random random = new Random();
+					int randomIndex = random.nextInt(CL.size());
+					// int index = (int)(Math.random() * CL.size());
+					selectedCandidates.add(CL.get(randomIndex));
+				}
 
-			Double minCost = Collections.min(candidatesAndCost.keySet());
-			RCL.add(candidatesAndCost.get(minCost));
+				Map<Double, E> candidatesAndCost = new HashMap<Double, E>();
+				for (E c : selectedCandidates) {
+					Double cost = ObjFunction.evaluateInsertionCost(c, sol);
+					candidatesAndCost.put(cost, c);
+				}
+				
+				minCost = Collections.min(candidatesAndCost.keySet());
+				RCL.add(candidatesAndCost.get(minCost));
 
-			if (!RCL.isEmpty()){
-				/* Choose a candidate randomly from the RCL */
-				int rndIndex = rng.nextInt(RCL.size());
-				E inCand = RCL.get(rndIndex);
-				CL.remove(inCand);
-				sol.add(inCand);
-				ObjFunction.evaluate(sol);
-				RCL.clear();
+				if (!RCL.isEmpty()){
+					/* Choose a candidate randomly from the RCL */
+					int rndIndex = rng.nextInt(RCL.size());
+					E inCand = RCL.get(rndIndex);
+					CL.remove(inCand);
+					// numberOfCandidatesToSelect = (int)Math.min(p, CL.size());
+					sol.add(inCand);
+					ObjFunction.evaluate(sol);
+					RCL.clear();
+				}
 			}
 		}
+
+		return sol;
 	}
 
-	/**
+	/**w
 	 * The GRASP mainframe. It consists of a loop, in which each iteration goes
 	 * through the constructive heuristic and local search. The best solution is
 	 * returned as result.
@@ -372,7 +381,9 @@ public abstract class AbstractGRASP<E> {
 
 		bestSol = createEmptySol();
 		for (int i = 0; i < iterations; i++) {
-			constructiveReactiveHeuristic();
+			constructiveHeuristic();
+			// constructiveReactiveHeuristic();
+			// constructiveSampleGreedyHeuristic((double)10);
 			localSearch();
 			if (bestSol.cost > sol.cost) {
 				bestSol = new Solution<E>(sol);
