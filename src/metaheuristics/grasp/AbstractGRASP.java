@@ -358,7 +358,7 @@ public abstract class AbstractGRASP<E> {
 				ObjFunction.evaluate(sol);
 				RCL.clear();
 			}
-	
+		}
 	}
 
 	/**
