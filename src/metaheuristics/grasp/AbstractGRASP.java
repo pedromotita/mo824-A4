@@ -6,6 +6,8 @@ package metaheuristics.grasp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.HashMap;
+import java.util.Collections;
 
 import problems.Evaluator;
 import solutions.Solution;
@@ -312,6 +314,51 @@ public abstract class AbstractGRASP<E> {
 		}
 
 		return sol;
+	}
+
+	public Solution<E> sampledGreedyConstruction(Double p) {
+		CL = makeCL();
+		RCL = makeRCL();
+		sol = createEmptySol();
+		cost = Double.POSITIVE_INFINITY;
+		Int numberOfCandidatesToSelect = Math.min(CL.size(), p);
+		
+		while (!constructiveStopCriteria()) {
+
+			double maxCost = Double.NEGATIVE_INFINITY, minCost = Double.POSITIVE_INFINITY;
+			cost = ObjFunction.evaluate(sol);
+			updateCL();
+	
+			/*
+			 * Among all candidates, randomly sample min{p, |C|} elements and insert into the RCL those
+			 * performance using parameter alpha as threshold.
+			 */
+			ArrayList<E> selectedCandidates = ArrayList<>();
+			for (int i = 0; i < numberOfCandidatesToSelect; i++) {
+           		// generating the index using Math.random()
+            	int index = (int)(Math.random() * CL.size());
+            	selectedCandidates.add(CL.get(index));
+        	}
+
+			Map<Double, E> candidatesAndCost = new HashMap<String, String>();
+			for (E c : selectedCandidates) {
+				Double cost = ObjFunction.evaluateInsertionCost(c, sol);
+				candidatesAndCost.put(cost, c);
+			}
+
+			Double minCost = Collections.min(candidatesAndCost.keySet());
+			RCL.add(candidatesAndCost.get(minCost));
+
+			if (!RCL.isEmpty()){
+				/* Choose a candidate randomly from the RCL */
+				int rndIndex = rng.nextInt(RCL.size());
+				E inCand = RCL.get(rndIndex);
+				CL.remove(inCand);
+				sol.add(inCand);
+				ObjFunction.evaluate(sol);
+				RCL.clear();
+			}
+	
 	}
 
 	/**
