@@ -4,6 +4,7 @@
 package metaheuristics.grasp;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 import problems.Evaluator;
@@ -39,6 +40,11 @@ public abstract class AbstractGRASP<E> {
 	 * the GRASP greediness-randomness parameter
 	 */
 	protected Double alpha;
+
+	/**
+	 * the all possible values for GRASP greediness-randomness parameter used in the reactive constructive method
+	 */
+	protected Double[] alphaP;
 
 	/**
 	 * the best (incumbent) solution cost
@@ -191,6 +197,123 @@ public abstract class AbstractGRASP<E> {
 		return sol;
 	}
 
+	 /** 
+	 * Get alpha based on a determined probability.
+	 * @param alphaProbability
+	 		each element contains the probability of the alpha i being chosen, i = 0, 1, ..., m
+			m being the size of array
+	 * 
+	 * @return Index of a alpha value taking into account the probability
+	 */
+	public int getAlphaIndex(Double[] alphaProbability) {
+		Double sum = 0.0;
+		ArrayList<Double> cumulativeSum = new ArrayList<>();
+		for (Double p : alphaProbability) {
+			sum += p;
+			cumulativeSum.add(sum);
+		}
+		int alphaIndex = Arrays.binarySearch(cumulativeSum.toArray(), rng.nextDouble() * sum);
+
+		return Math.abs(alphaIndex);
+	}
+
+	/**
+	 * The GRASP constructive reactive heuristic, which is responsible for building a
+	 * feasible solution by selecting in a greedy-random fashion, candidate
+	 * elements to enter the solution and changing the value of alpha in a reactive way based
+	 * on previous iterations.
+	 * 
+	 * @return A feasible solution to the problem being minimized.
+	 */
+	public Solution<E> constructiveReactiveHeuristic() {
+
+		CL = makeCL();
+		RCL = makeRCL();
+		sol = createEmptySol();
+		cost = Double.POSITIVE_INFINITY;
+
+
+		/* Set up variable that will be used to determine the best values for alpha*/
+		int numPossibleAlpha = 10;
+		Double[] alphas = new Double[numPossibleAlpha];
+		Double[] sumCostUsingAlpha = new Double[numPossibleAlpha];
+		Integer[] averageCostUsingAlphaCount = new Integer[numPossibleAlpha];
+		Double[] alphaProbability = new Double[numPossibleAlpha];
+		double previousAlpha = 0;
+		for (int i=0; i < numPossibleAlpha; i++) {
+			// Initially probability of any alpha is pi = 1/m , for i = 0,1 .., m 
+			// m being the size of the set of all possible alpha values
+			alphaProbability[i] = 1/ (double) numPossibleAlpha;
+
+			//Set all possible alpha values
+			previousAlpha += 1/ (double) numPossibleAlpha;
+			alphas[i] = previousAlpha;
+
+			// Set the average function cost for a given i alpha 
+			sumCostUsingAlpha[i] = cost;
+			averageCostUsingAlphaCount[i] = 0;
+		}
+
+		/* Main loop, which repeats until the stopping criteria is reached. */
+		while (!constructiveStopCriteria()) {
+
+			double maxCost = Double.NEGATIVE_INFINITY, minCost = Double.POSITIVE_INFINITY;
+			cost = ObjFunction.evaluate(sol);
+			updateCL();
+			int alphaIndex = Math.min(getAlphaIndex(alphaProbability), numPossibleAlpha-1);
+			alpha = alphas[alphaIndex];
+
+			/*
+			 * Explore all candidate elements to enter the solution, saving the
+			 * highest and lowest cost variation achieved by the candidates.
+			 */
+			for (E c : CL) {
+				Double deltaCost = ObjFunction.evaluateInsertionCost(c, sol);
+				if (deltaCost < minCost)
+					minCost = deltaCost;
+				if (deltaCost > maxCost)
+					maxCost = deltaCost;
+			}
+
+			/*
+			 * Among all candidates, insert into the RCL those with the highest
+			 * performance using parameter alpha as threshold.
+			 */
+			for (E c : CL) {
+				Double deltaCost = ObjFunction.evaluateInsertionCost(c, sol);
+				if (deltaCost <= minCost + alpha * (maxCost - minCost)) {
+					RCL.add(c);
+				}
+			}
+
+			if (!RCL.isEmpty()){
+				/* Choose a candidate randomly from the RCL */
+				int rndIndex = rng.nextInt(RCL.size());
+				E inCand = RCL.get(rndIndex);
+				CL.remove(inCand);
+				sol.add(inCand);
+				ObjFunction.evaluate(sol);
+				RCL.clear();
+			}
+			
+			// Based on the new values for cost updateAlphaProbabilities
+			averageCostUsingAlphaCount[alphaIndex] += 1;
+			sumCostUsingAlpha[alphaIndex] += cost;
+
+			double averageCostUsingAlpha = sumCostUsingAlpha[alphaIndex] / averageCostUsingAlphaCount[alphaIndex];
+
+			double auxSum = 0;
+			for (int i=0; i < numPossibleAlpha; i++) {
+				auxSum += sumCostUsingAlpha[i] / averageCostUsingAlphaCount[i];
+			}
+
+			alphaProbability[alphaIndex] = averageCostUsingAlpha / auxSum;
+
+		}
+
+		return sol;
+	}
+
 	/**
 	 * The GRASP mainframe. It consists of a loop, in which each iteration goes
 	 * through the constructive heuristic and local search. The best solution is
@@ -202,7 +325,7 @@ public abstract class AbstractGRASP<E> {
 
 		bestSol = createEmptySol();
 		for (int i = 0; i < iterations; i++) {
-			constructiveHeuristic();
+			constructiveReactiveHeuristic();
 			localSearch();
 			if (bestSol.cost > sol.cost) {
 				bestSol = new Solution<E>(sol);
